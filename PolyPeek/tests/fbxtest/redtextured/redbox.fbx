@@ -1,0 +1,144 @@
+; FBX 7.4.0 project file
+; Generated as a minimal textured-box test fixture for PolyPeek FBX fixes.
+
+FBXHeaderExtension:  {
+	FBXHeaderVersion: 1003
+	FBXVersion: 7400
+	Creator: "PolyPeek test"
+}
+GlobalSettings:  {
+	Version: 1000
+	Properties70:  {
+		P: "UpAxis", "int", "Integer", "",1
+		P: "UpAxisSign", "int", "Integer", "",1
+		P: "FrontAxis", "int", "Integer", "",2
+		P: "FrontAxisSign", "int", "Integer", "",1
+		P: "CoordAxis", "int", "Integer", "",0
+		P: "CoordAxisSign", "int", "Integer", "",1
+		P: "OriginalUpAxis", "int", "Integer", "",1
+		P: "OriginalUpAxisSign", "int", "Integer", "",1
+		P: "UnitScaleFactor", "double", "Number", "",1
+		P: "OriginalUnitScaleFactor", "double", "Number", "",1
+	}
+}
+Documents:  {
+	Count: 1
+	Document: 1000000000, "Scene", "Scene" {
+		Properties70:  {
+			P: "SourceObject", "object", "", ""
+		}
+		RootNode: 0
+	}
+}
+References:  {
+}
+Definitions:  {
+	Version: 100
+	Count: 6
+	ObjectType: "Model" {
+		Count: 2
+	}
+	ObjectType: "Geometry" {
+		Count: 1
+	}
+	ObjectType: "Material" {
+		Count: 1
+	}
+	ObjectType: "Texture" {
+		Count: 1
+	}
+	ObjectType: "Video" {
+		Count: 1
+	}
+}
+Objects:  {
+	Geometry: 1000, "Geometry::Cuboid", "Mesh" {
+		GeometryVersion: 124
+		Vertices: *24 {
+			a: 1,-1,-1, 1,1,-1, -1,1,-1, -1,-1,-1, 1,-1,1, 1,1,1, -1,1,1, -1,-1,1
+		}
+		PolygonVertexIndex: *36 {
+			a: 0,5,-2, 0,4,-6, 1,6,-3, 1,5,-7, 3,6,-3, 3,7,-7, 4,5,-7, 4,6,-8, 0,2,-2, 0,3,-3, 0,7,-4, 0,4,-8
+		}
+		LayerElementMaterial: 0 {
+			Version: 101
+			Name: ""
+			MappingInformationType: "AllSame"
+			ReferenceInformationType: "IndexToDirect"
+			Materials: *1 {
+				a: 0
+			}
+		}
+		LayerElementUV: 0 {
+			Version: 101
+			Name: "uv"
+			MappingInformationType: "ByPolygonVertex"
+			ReferenceInformationType: "Direct"
+			UV: *72 {
+				a: 0,0, 1,0, 0,1, 1,1, 0,0, 1,0, 0,1, 1,1, 0,0, 1,0, 0,1, 1,1, 0,0, 1,0, 0,1, 1,1, 0,0, 1,0, 0,1, 1,1, 0,0, 1,0, 0,1, 1,1, 0,0, 1,0, 0,1, 1,1, 0,0, 1,0, 0,1, 1,1
+			}
+		}
+		LayerElementSmoothing: 0 {
+			Version: 102
+			Name: ""
+			MappingInformationType: "ByPolygon"
+			Smoothing: *12 {
+				a: 1,1,1,1,1,1,1,1,1,1,1,1
+			}
+		}
+	}
+	Material: 3000, "Material::Mat", "" {
+		Version: 102
+		ShadingModel: "phong"
+		MultiLayer: 0
+		Properties70:  {
+			P: "DiffuseColor", "Color", "", "A",1,1,1
+			P: "ShininessExponent", "double", "Number", "",20
+		}
+	}
+	Model: 4000, "Model::Cuboid", "Mesh" {
+		Version: 232
+		Properties70:  {
+			P: "Lcl Translation", "Lcl Translation", "", "A",0,0,0
+			P: "Lcl Rotation", "Lcl Rotation", "", "A",0,0,0
+			P: "Lcl Scaling", "Lcl Scaling", "", "A",1,1,1
+		}
+		Shading: T
+		Culling: "CullingOff"
+	}
+	Model: 0, "Model::RootNode", "Null" {
+		Version: 232
+		Properties70:  {
+			P: "Lcl Translation", "Lcl Translation", "", "A",0,0,0
+			P: "Lcl Rotation", "Lcl Rotation", "", "A",0,0,0
+			P: "Lcl Scaling", "Lcl Scaling", "", "A",1,1,1
+		}
+	}
+	Texture: 5000, "Texture::Tex", "" {
+		Type: "TextureVideoClip"
+		Version: 202
+		TextureName: "Texture::Tex"
+		Media: "Video::Video0"
+		FileName: "Textures\\red.png"
+		RelativeFilename: "Textures\\red.png"
+		ModelUVTranslation: 0,0
+		ModelUVScaling: 1,1
+		Texture_Alpha_Source: "None"
+		Cropping: 0,0,0,0
+	}
+	Video: 6000, "Video::Video0", "Clip" {
+		Type: "Clip"
+		Version: 202
+		Texture: true
+		Content: ""
+		Filename: "Textures\\red.png"
+		RelativeFilename: "Textures\\red.png"
+	}
+}
+Connections:  {
+	C: "OO", 6000, 5000, "OO"
+	C: "OO", 5000, 3000, "DiffuseColor"
+	C: "OO", 1000, 4000, "OO"
+	C: "OO", 3000, 4000, "OO"
+	C: "OO", 4000, 0, "OO"
+}

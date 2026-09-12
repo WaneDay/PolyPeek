@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'unsafe-eval' 'wasm-unsafe-eval'; worker-src 'self' blob:; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; connect-src 'self'; font-src 'self' data:" />
+  <title>PolyPeek</title>
+  <style>
+    /* ---------- QuickLook theming (follows Windows system theme) ---------- */
+    :root {
+      /* Windows personalization accent color (set at runtime, fallback below) */
+      --accent: #4f8cff;
+    }
+    :root[data-theme='light'] {
+      --win-bg: #fafafa;
+      --ql-border: #dadada;
+      --ql-fg: #0e0e0e;
+      --ql-fg-alt: #626262;
+      --ql-caption: rgba(218, 218, 218, 0.78);
+      --ql-caption-hover: rgba(255, 255, 255, 0.27);
+      --ql-caption-press: rgba(255, 255, 255, 0.53);
+      --ql-close-hover-bg: #e81123;
+      --ql-close-hover-fg: #efefef;
+      --ql-close-press-bg: #b5394b;
+      --bar-bg: rgba(250, 250, 250, 0.92);
+      --bar-border: rgba(0, 0, 0, 0.09);
+      --panel-bg: rgba(255, 255, 255, 0.92);
+      --panel-border: rgba(0, 0, 0, 0.12);
+      --menu-bg: rgba(255, 255, 255, 0.97);
+      --scrim: rgba(255, 255, 255, 0.5);
+    }
+    :root[data-theme='dark'] {
+      --win-bg: #292929;
+      --ql-border: #0e0e0e;
+      --ql-fg: #efefef;
+      --ql-fg-alt: #d4d4d4;
+      --ql-caption: rgba(14, 14, 14, 0.8);
+      --ql-caption-hover: rgba(255, 255, 255, 0.13);
+      --ql-caption-press: rgba(255, 255, 255, 0.27);
+      --ql-close-hover-bg: #e81123;
+      --ql-close-hover-fg: #efefef;
+      --ql-close-press-bg: #b5394b;
+      --bar-bg: rgba(41, 41, 41, 0.92);
+      --bar-border: rgba(255, 255, 255, 0.09);
+      --panel-bg: rgba(34, 34, 36, 0.94);
+      --panel-border: rgba(255, 255, 255, 0.12);
+      --menu-bg: rgba(38, 38, 40, 0.97);
+      --scrim: rgba(0, 0, 0, 0.4);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      background: var(--win-bg);
+      color: var(--ql-fg);
+      font: 13px/1.5 "Segoe UI", system-ui, sans-serif;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* frozen (磨砂) backdrop layer seen through the semi-transparent canvas */
+    #viewport { position: fixed; inset: 0; }
+    #viewport canvas { display: block; position: absolute; inset: 0; }
+
+    /* 1px QuickLook window border (hidden while maximized) */
+    .app-frame {
+      position: fixed; inset: 0; pointer-events: none; z-index: 1000;
+      border: 1px solid var(--ql-border);
+    }
+    body.maximized .app-frame { border: none; }
+
+    /* ==================== QuickLook caption bar (32px) ==================== */
+    .caption {
+      position: fixed; top: 0; left: 0; right: 0; height: 32px; z-index: 500;
+      -webkit-app-region: drag;
+    }
+    .caption .glass {
+      position: absolute; inset: 0; pointer-events: none;
+      background: var(--ql-caption);
+      backdrop-filter: blur(14px) saturate(1.15);
+      border-bottom: 1px solid var(--ql-border);
+    }
+    .caption .glass::after {
+      content: ""; position: absolute; inset: 0; opacity: 0.5;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.028 0'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+    .cap-row { position: absolute; inset: 0; display: flex; align-items: center; }
+    .cap-left { display: flex; z-index: 1; }
+    .cap-right { display: flex; margin-left: auto; z-index: 1; }
+    .cap-title {
+      flex: 1; min-width: 0; margin-left: 5px; margin-right: 5px;
+      font-size: 12px; color: var(--ql-fg); white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .cap-btn {
+      -webkit-app-region: no-drag;
+      width: 45px; height: 32px; border: none; outline: none;
+      background: transparent; color: var(--ql-fg);
+      font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets";
+      font-size: 13px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .cap-btn:hover { background: var(--ql-caption-hover); }
+    .cap-btn:active { background: var(--ql-caption-press); }
+    .cap-btn .badge {
+      font-size: 6.5px; margin-left: -2px; margin-bottom: -8px;
+      color: var(--ql-fg);
+    }
+    .cap-btn.off > .badge { opacity: 0; }
+    .cap-btn.ql-close:hover { background: var(--ql-close-hover-bg); color: var(--ql-close-hover-fg); }
+    .cap-btn.ql-close:active { background: var(--ql-close-press-bg); }
+
+    /* more (•••) popup menu — QuickLook left context menu */
+    .ql-menu {
+      position: fixed; z-index: 600; display: none; min-width: 200px;
+      padding: 4px; background: var(--menu-bg); color: var(--ql-fg);
+      border: 1px solid var(--panel-border); border-radius: 6px;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
+      font-size: 12px;
+    }
+    .ql-menu.show { display: block; }
+    .ql-menu .mi {
+      display: flex; align-items: center; gap: 8px; width: 100%;
+      padding: 6px 10px; border: none; background: none; color: var(--ql-fg);
+      font-size: 12px; text-align: left; cursor: pointer; border-radius: 4px;
+      -webkit-app-region: no-drag;
+    }
+    .ql-menu .mi:hover { background: var(--ql-caption-hover); }
+    .ql-menu .mi .ic { font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets"; font-size: 12px; width: 16px; text-align: center; }
+    .ql-menu hr { border: none; border-top: 1px solid var(--bar-border); margin: 4px 0; }
+    .ql-menu .mi.hidden { display: none; }
+
+    /* ==================== main-mode toolbar (original, kept) ==================== */
+    .toolbar {
+      position: fixed; top: 32px; left: 0; right: 0; height: 48px; z-index: 400;
+      display: none; align-items: center; gap: 12px;
+      padding: 0 14px; background: var(--bar-bg);
+      border-bottom: 1px solid var(--bar-border);
+    }
+    body.main .toolbar { display: flex; }
+    .btn {
+      border: 1px solid var(--bar-border); border-radius: 6px;
+      background: var(--panel-bg); color: var(--ql-fg);
+      padding: 6px 12px; cursor: pointer; font-size: 12px;
+    }
+    .btn:hover { border-color: var(--accent); }
+    .btn:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+    .filename { color: var(--ql-fg-alt); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; text-align: right; }
+    .obscure { color: var(--ql-fg-alt); }
+
+    /* ==================== main-mode status bar (original, kept) ==================== */
+    .statusbar {
+      position: fixed; left: 0; right: 0; bottom: 0; height: 26px; z-index: 400;
+      display: none; align-items: center; padding: 0 12px;
+      font-size: 11px; color: var(--ql-fg-alt);
+      background: var(--bar-bg); border-top: 1px solid var(--bar-border);
+    }
+    body.main .statusbar { display: flex; }
+    .statusbar .err { color: #ff7b72; }
+
+    /* ==================== load / drop overlays ==================== */
+    #loading {
+      position: fixed; inset: 0; display: none; z-index: 900;
+      align-items: center; justify-content: center;
+      background: var(--scrim);
+    }
+    #loading.show { display: flex; }
+    .spinner {
+      width: 34px; height: 34px; border-radius: 50%;
+      border: 3px solid rgba(128, 128, 128, 0.25); border-top-color: #4f8cff;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #drop {
+      position: fixed; inset: 0; display: none; z-index: 950;
+      align-items: center; justify-content: center;
+      background: rgba(79, 140, 255, 0.10); border: 2px dashed #4f8cff;
+      font-size: 16px; color: #4f8cff; pointer-events: none;
+    }
+    #drop.show { display: flex; }
+  </style>
+</head>
+<body class="main">
+  <div class="app-frame"></div>
+  <div id="viewport"></div>
+
+  <!-- QuickLook caption bar -->
+  <header class="caption" id="caption">
+    <div class="glass"></div>
+    <div class="cap-row">
+      <div class="cap-left">
+        <button class="cap-btn off" id="btnTop" title="保持在最顶层"><span>&#xE898;</span><span class="badge">&#xF83F;</span></button>
+        <button class="cap-btn off" id="btnPin" title="防止关闭"><span>&#xE840;</span><span class="badge">&#xE842;</span></button>
+      </div>
+      <div class="cap-title" id="captionTitle">PolyPeek</div>
+      <div class="cap-right">
+        <button class="cap-btn" id="btnMore" title="更多">&#xE712;</button>
+        <button class="cap-btn" id="btnReload" title="重新加载">&#xE72C;</button>
+        <button class="cap-btn" id="btnOpen" title="用默认程序打开">&#xE8E5;</button>
+        <button class="cap-btn" id="btnOpenWith" title="打开方式">&#xE7AC;</button>
+        <button class="cap-btn" id="btnShare" title="分享（复制路径）">&#xE72D;</button>
+        <button class="cap-btn" id="btnMax" title="最大化">&#xE740;</button>
+        <button class="cap-btn ql-close" id="btnClose" title="关闭">&#xE894;</button>
+      </div>
+    </div>
+  </header>
+  <div class="ql-menu" id="qlMenu">
+    <button class="mi" data-act="reload"><span class="ic">&#xE72C;</span><span>重新加载</span></button>
+    <button class="mi" data-act="copy-path"><span class="ic">&#xE8C8;</span><span>复制文件路径</span></button>
+    <hr />
+    <button class="mi hidden" data-act="settings"><span class="ic">&#xE713;</span><span>设置</span></button>
+  </div>
+
+  <!-- main-mode toolbar (original, retained) -->
+  <div class="toolbar">
+    <button class="btn" id="btnOpenFile">打开文件</button>
+    <span class="obscure">或拖拽 3D 文件到窗口</span>
+    <span class="filename" id="filename"></span>
+  </div>
+
+  <div class="statusbar"><span id="status"></span></div>
+
+  <div id="loading"><div class="spinner"></div></div>
+  <div id="drop">松开以加载 3D 模型</div>
+
+  <script type="module" src="./renderer.js"></script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+{
+  "name": "polypeek",
+  "version": "1.0.0",
+  "description": "PolyPeek - lightweight Windows 3D model viewer (glb/gltf/obj/fbx/stl/ply/dae/3ds/step/iges ...)",
+  "author": "PolyPeek",
+  "license": "MIT",
+  "private": true,
+  "main": "dist/main/index.cjs",
+  "scripts": {
+    "build:js": "node scripts/build.mjs",
+    "build:native": "powershell -ExecutionPolicy Bypass -File scripts/build-native.ps1",
+    "build": "npm run build:js && npm run build:native",
+    "pack:dir": "electron-builder --win --dir",
+    "pack:installer": "powershell -ExecutionPolicy Bypass -File scripts/package-installer.ps1",
+    "pack:update": "powershell -ExecutionPolicy Bypass -File scripts/make-update-package.ps1",
+    "start": "electron .",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "three": "^0.186.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/three": "^0.186.0",
+    "electron": "^44.3.0",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.9.0"
+  },
+  "build": {
+    "appId": "com.polypeek.app",
+    "productName": "PolyPeek",
+    "executableName": "PolyPeek",
+    "directories": {
+      "output": "dist-package",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        {
+          "target": "dir",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    }
+  }
+}
