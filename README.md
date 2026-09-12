@@ -12,7 +12,7 @@ A lightweight 3D model preview viewer for Windows, with a clean modern UI.
 
 PolyPeek is a lightweight 3D model preview viewer for Windows. It features a clean, modern UI that follows the system light/dark theme, provides colored **thumbnail previews** for 3D files in File Explorer, and a **global quick-preview** hotkey: select a model file and press Backtick (`` ` ``) to preview instantly.
 
-<img width="1182" height="765" alt="image" src="https://github.com/user-attachments/assets/b780bd46-f172-4d82-8a51-44fa2bd4757f" />
+<img width="1203" height="741" alt="image" src="https://github.com/user-attachments/assets/d52837f6-5b9f-4906-ab01-d0381f054d12" />
 
 It ships as a per-user installer and optionally registers file associations so PolyPeek can be set as the default 3D model viewer.
 
@@ -75,6 +75,8 @@ MIT License — see [LICENSE](LICENSE).
 ### 项目简介
 
 PolyPeek 是 Windows 平台轻量 3D 模型预览查看器，采用简洁现代界面（跟随系统明暗主题）。支持资源管理器 3D 文件**彩色缩略图**预览，以及**全局快速预览**：选中模型文件后按反引号键（`` ` ``）即时预览。
+
+<img width="1182" height="765" alt="image" src="https://github.com/user-attachments/assets/b780bd46-f172-4d82-8a51-44fa2bd4757f" />
 
 提供逐用户安装包，可选注册文件关联，将 PolyPeek 设为 3D 模型默认查看程序。
 
