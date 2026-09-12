@@ -1,4 +1,3 @@
-[README.md](https://github.com/user-attachments/files/32149326/README.md)
 # PolyPeek
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
