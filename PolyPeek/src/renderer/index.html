@@ -2,7 +2,7 @@
 <html lang="zh-CN" data-theme="light">
 <head>
   <meta charset="utf-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'unsafe-eval' 'wasm-unsafe-eval'; worker-src 'self' blob:; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; connect-src 'self'; font-src 'self' data:" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'unsafe-eval' 'wasm-unsafe-eval'; worker-src 'self' blob:; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; connect-src 'self' blob: data:; font-src 'self' data:" />
   <title>PolyPeek</title>
   <style>
     /* ---------- QuickLook theming (follows Windows system theme) ---------- */
@@ -27,6 +27,8 @@
       --panel-border: rgba(0, 0, 0, 0.12);
       --menu-bg: rgba(255, 255, 255, 0.97);
       --scrim: rgba(255, 255, 255, 0.5);
+      --chip-bg: rgba(0, 0, 0, 0.05);
+      --chip-bg-on: rgba(79, 140, 255, 0.16);
     }
     :root[data-theme='dark'] {
       --win-bg: #292929;
@@ -45,6 +47,8 @@
       --panel-border: rgba(255, 255, 255, 0.12);
       --menu-bg: rgba(38, 38, 40, 0.97);
       --scrim: rgba(0, 0, 0, 0.4);
+      --chip-bg: rgba(255, 255, 255, 0.08);
+      --chip-bg-on: rgba(79, 140, 255, 0.28);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; }
@@ -101,6 +105,7 @@
     }
     .cap-btn:hover { background: var(--ql-caption-hover); }
     .cap-btn:active { background: var(--ql-caption-press); }
+    .cap-btn.on { color: var(--accent); }
     .cap-btn .badge {
       font-size: 6.5px; margin-left: -2px; margin-bottom: -8px;
       color: var(--ql-fg);
@@ -126,6 +131,7 @@
     }
     .ql-menu .mi:hover { background: var(--ql-caption-hover); }
     .ql-menu .mi .ic { font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets"; font-size: 12px; width: 16px; text-align: center; }
+    .ql-menu .mi .hint { margin-left: auto; color: var(--ql-fg-alt); font-size: 11px; }
     .ql-menu hr { border: none; border-top: 1px solid var(--bar-border); margin: 4px 0; }
     .ql-menu .mi.hidden { display: none; }
 
@@ -178,6 +184,161 @@
       font-size: 16px; color: #4f8cff; pointer-events: none;
     }
     #drop.show { display: flex; }
+
+    /* ==================== side panel (information / view controls) ==================== */
+    .panel {
+      position: fixed; top: 32px; right: 0; bottom: 0; width: 272px; z-index: 460;
+      display: none; flex-direction: column;
+      background: var(--panel-bg); border-left: 1px solid var(--panel-border);
+      backdrop-filter: blur(18px) saturate(1.15);
+      transform: translateX(100%); transition: transform 0.18s ease;
+    }
+    body.main .panel { bottom: 26px; }
+    .panel.show { display: flex; }
+    .panel.open { transform: translateX(0); }
+    .p-head {
+      display: flex; align-items: center; height: 34px; padding: 0 6px 0 14px;
+      font-size: 12px; font-weight: 600; color: var(--ql-fg);
+      border-bottom: 1px solid var(--bar-border); flex: 0 0 auto;
+    }
+    .p-head .p-close {
+      margin-left: auto; width: 30px; height: 26px; border: none; border-radius: 4px;
+      background: transparent; color: var(--ql-fg); cursor: pointer;
+      font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets"; font-size: 11px;
+    }
+    .p-head .p-close:hover { background: var(--ql-caption-hover); }
+    .p-body { flex: 1 1 auto; overflow-y: auto; padding: 4px 0 14px; }
+    .p-body::-webkit-scrollbar { width: 8px; }
+    .p-body::-webkit-scrollbar-thumb { background: rgba(128, 128, 128, 0.35); border-radius: 4px; }
+    .p-sec { padding: 9px 14px 11px; border-bottom: 1px solid var(--bar-border); }
+    .p-sec:last-child { border-bottom: none; }
+    .p-sec.hide { display: none; }
+    .p-title {
+      font-size: 11px; color: var(--ql-fg-alt); margin-bottom: 7px;
+      letter-spacing: 0.4px;
+    }
+    .srow {
+      display: flex; justify-content: space-between; gap: 10px;
+      font-size: 12px; padding: 2px 0;
+    }
+    .srow .k { color: var(--ql-fg-alt); flex: 0 0 auto; }
+    .srow .v {
+      font-variant-numeric: tabular-nums; text-align: right;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .seg {
+      display: flex; gap: 4px; background: var(--chip-bg);
+      padding: 3px; border-radius: 7px;
+    }
+    .seg-btn {
+      flex: 1; border: none; border-radius: 5px; padding: 4px 2px;
+      background: transparent; color: var(--ql-fg); font-size: 11.5px;
+      cursor: pointer; white-space: nowrap;
+    }
+    .seg-btn:hover { background: var(--ql-caption-hover); }
+    .seg-btn.on { background: var(--accent); color: #fff; }
+    .toggles { display: flex; flex-direction: column; gap: 5px; }
+    .tg {
+      display: flex; align-items: center; gap: 8px; font-size: 12px;
+      cursor: pointer;
+    }
+    .tg input { accent-color: var(--accent); width: 14px; height: 14px; cursor: pointer; }
+    .tg .hint { margin-left: auto; color: var(--ql-fg-alt); font-size: 10.5px; }
+    .p-range {
+      width: 100%; margin-top: 8px; accent-color: var(--accent); cursor: pointer;
+    }
+    .p-select {
+      width: 100%; margin-top: 2px; padding: 4px 6px; font-size: 12px;
+      color: var(--ql-fg); background: var(--chip-bg);
+      border: 1px solid var(--panel-border); border-radius: 6px; outline: none;
+    }
+    .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+    .chip {
+      border: 1px solid var(--panel-border); border-radius: 999px;
+      background: var(--chip-bg); color: var(--ql-fg);
+      padding: 3px 10px; font-size: 11.5px; cursor: pointer;
+    }
+    .chip:hover { border-color: var(--accent); }
+    .chip.on { background: var(--chip-bg-on); border-color: var(--accent); color: var(--accent); }
+    .p-note { margin-top: 6px; font-size: 10.5px; color: var(--ql-fg-alt); }
+
+    /* ==================== performance overlay ==================== */
+    #perf {
+      position: fixed; top: 38px; right: 12px; z-index: 470;
+      display: none; padding: 3px 9px; border-radius: 6px;
+      background: var(--panel-bg); border: 1px solid var(--panel-border);
+      font-size: 11px; color: var(--ql-fg-alt);
+      font-variant-numeric: tabular-nums; pointer-events: none;
+    }
+    #perf.show { display: block; }
+    body.preview #perf { top: 38px; }
+
+    /* ==================== animation timeline ==================== */
+    .animbar {
+      position: fixed; left: 50%; transform: translateX(-50%); bottom: 38px; z-index: 450;
+      display: none; align-items: center; gap: 10px; padding: 6px 14px 6px 6px;
+      border-radius: 999px; background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      backdrop-filter: blur(14px) saturate(1.15);
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+    }
+    .animbar.show { display: flex; }
+    body.preview .animbar { bottom: 16px; }
+    .ab-btn {
+      -webkit-app-region: no-drag;
+      width: 30px; height: 30px; border: none; outline: none; border-radius: 50%;
+      background: transparent; color: var(--ql-fg); cursor: pointer;
+      font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets";
+      font-size: 12px; display: flex; align-items: center; justify-content: center;
+    }
+    .ab-btn:hover { background: var(--ql-caption-hover); }
+    .ab-btn:active { background: var(--ql-caption-press); }
+    .ab-speed {
+      -webkit-app-region: no-drag;
+      min-width: 34px; height: 24px; border: 1px solid var(--panel-border);
+      border-radius: 999px; background: transparent; color: var(--ql-fg);
+      font-size: 11px; cursor: pointer; font-variant-numeric: tabular-nums;
+    }
+    .ab-speed:hover { border-color: var(--accent); color: var(--accent); }
+    .speed-pop {
+      position: absolute; bottom: calc(100% + 8px); right: 8px;
+      display: none; flex-direction: column; gap: 2px; padding: 5px;
+      border-radius: 10px; background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+      backdrop-filter: blur(14px) saturate(1.15);
+      z-index: 10;
+    }
+    .speed-pop.show { display: flex; }
+    .speed-pop button {
+      -webkit-app-region: no-drag;
+      min-width: 54px; padding: 4px 10px; border: none; border-radius: 6px;
+      background: transparent; color: var(--ql-fg); font-size: 11.5px;
+      text-align: center; cursor: pointer; font-variant-numeric: tabular-nums;
+    }
+    .speed-pop button:hover { background: var(--ql-caption-hover); }
+    .speed-pop button.on { color: var(--accent); font-weight: 600; }
+    .ab-range {
+      -webkit-app-region: no-drag; width: 230px; height: 14px; margin: 0;
+      cursor: pointer; background: transparent;
+      -webkit-appearance: none; appearance: none;
+    }
+    .ab-range:focus { outline: none; }
+    .ab-range::-webkit-slider-runnable-track {
+      height: 3px; border-radius: 999px; background: var(--panel-border);
+    }
+    .ab-range::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 11px; height: 11px; margin-top: -4px; border-radius: 50%;
+      background: var(--accent); border: none;
+      transition: transform 0.12s ease;
+    }
+    .ab-range:hover::-webkit-slider-thumb { transform: scale(1.15); }
+    .ab-range:active::-webkit-slider-thumb { transform: scale(1.3); }
+    .ab-time {
+      min-width: 84px; text-align: center; font-size: 11px;
+      color: var(--ql-fg-alt); font-variant-numeric: tabular-nums;
+    }
   </style>
 </head>
 <body class="main">
@@ -194,6 +355,7 @@
       </div>
       <div class="cap-title" id="captionTitle">PolyPeek</div>
       <div class="cap-right">
+        <button class="cap-btn" id="btnPanel" title="信息面板（P）">&#xE946;</button>
         <button class="cap-btn" id="btnMore" title="更多">&#xE712;</button>
         <button class="cap-btn" id="btnReload" title="重新加载">&#xE72C;</button>
         <button class="cap-btn" id="btnOpen" title="用默认程序打开">&#xE8E5;</button>
@@ -205,10 +367,81 @@
     </div>
   </header>
   <div class="ql-menu" id="qlMenu">
-    <button class="mi" data-act="reload"><span class="ic">&#xE72C;</span><span>重新加载</span></button>
+    <button class="mi" data-act="panel"><span class="ic">&#xE946;</span><span>信息面板</span><span class="hint">P</span></button>
+    <button class="mi" data-act="grid-toggle"><span class="ic">&#xE80A;</span><span>地面网格</span><span class="hint">G</span></button>
+    <button class="mi" data-act="axes-toggle"><span class="ic">&#xE9D9;</span><span>坐标轴</span><span class="hint">X</span></button>
+    <hr />
+    <button class="mi" data-act="reload"><span class="ic">&#xE72C;</span><span>重新加载</span><span class="hint">F5</span></button>
     <button class="mi" data-act="copy-path"><span class="ic">&#xE8C8;</span><span>复制文件路径</span></button>
     <hr />
     <button class="mi hidden" data-act="settings"><span class="ic">&#xE713;</span><span>设置</span></button>
+  </div>
+
+  <!-- performance overlay -->
+  <div id="perf">0 FPS</div>
+
+  <!-- side panel: model info + view / display / lighting controls -->
+  <aside class="panel" id="panel">
+    <div class="p-head"><span>信息与视图</span><button class="p-close" id="btnPanelClose" title="关闭面板">&#xE711;</button></div>
+    <div class="p-body">
+      <section class="p-sec" id="secStats">
+        <div class="p-title">模型信息</div>
+        <div class="srow"><span class="k">顶点</span><span class="v" id="stVerts">—</span></div>
+        <div class="srow"><span class="k">三角面</span><span class="v" id="stTris">—</span></div>
+        <div class="srow"><span class="k">网格</span><span class="v" id="stMeshes">—</span></div>
+        <div class="srow"><span class="k">材质</span><span class="v" id="stMats">—</span></div>
+        <div class="srow"><span class="k">尺寸</span><span class="v" id="stSize">—</span></div>
+        <div class="srow"><span class="k">体积（估算）</span><span class="v" id="stVolume">—</span></div>
+      </section>
+      <section class="p-sec">
+        <div class="p-title">视角模式</div>
+        <div class="seg" id="modeSeg">
+          <button class="seg-btn on" id="modeOrbit" data-mode="orbit">自由环绕</button>
+          <button class="seg-btn" id="modePresent" data-mode="presentation">展台</button>
+          <button class="seg-btn" id="modeStage" data-mode="stage">舞台</button>
+        </div>
+      </section>
+      <section class="p-sec">
+        <div class="p-title">显示</div>
+        <div class="toggles">
+          <label class="tg"><input type="checkbox" id="tgGrid" /><span>地面网格</span><span class="hint">G</span></label>
+          <label class="tg"><input type="checkbox" id="tgAxes" /><span>坐标轴</span><span class="hint">X</span></label>
+          <label class="tg"><input type="checkbox" id="tgGizmo" /><span>方向坐标</span></label>
+          <label class="tg"><input type="checkbox" id="tgRotate" /><span>自动旋转</span></label>
+          <label class="tg"><input type="checkbox" id="tgPerf" /><span>帧率显示</span></label>
+        </div>
+      </section>
+      <section class="p-sec">
+        <div class="p-title">灯光</div>
+        <div class="seg" id="lightSeg">
+          <button class="seg-btn on" data-preset="threePoint">三点</button>
+          <button class="seg-btn" data-preset="front">正面</button>
+          <button class="seg-btn" data-preset="rim">轮廓</button>
+          <button class="seg-btn" data-preset="top">顶光</button>
+          <button class="seg-btn" data-preset="none">无</button>
+        </div>
+        <input class="p-range" id="lightRange" type="range" min="20" max="200" step="5" value="100" title="灯光强度" />
+      </section>
+      <section class="p-sec hide" id="secAnim">
+        <div class="p-title">动画片段</div>
+        <select class="p-select" id="clipSel"></select>
+        <div class="p-note">空格播放 / 暂停，拖动时间轴预览</div>
+      </section>
+      <section class="p-sec hide" id="secMorph">
+        <div class="p-title">形态键（Morph）</div>
+        <div class="chips" id="morphChips"></div>
+        <div class="p-note">可同时选择多个形态键（叠加显示），再次点击取消</div>
+      </section>
+    </div>
+  </aside>
+
+  <!-- animation timeline (auto-shown for animated models, both modes) -->
+  <div class="animbar" id="animbar">
+    <button class="ab-btn" id="btnPlay" title="播放 / 暂停（空格）">&#xE769;</button>
+    <input class="ab-range" id="animRange" type="range" min="0" max="1000" step="1" value="0" title="动画进度" />
+    <span class="ab-time" id="animTime">0:00 / 0:00</span>
+    <button class="ab-speed" id="btnSpeed" title="播放速度">1×</button>
+    <div class="speed-pop" id="speedPop"></div>
   </div>
 
   <!-- main-mode toolbar (original, retained) -->

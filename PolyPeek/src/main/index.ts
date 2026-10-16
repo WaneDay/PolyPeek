@@ -21,6 +21,11 @@ let windowMode: WindowMode = 'main'
 let launchFile: string | null = null
 let thumbOut: string | null = null
 let thumbSize = 256
+let captureOut: string | null = null
+let captureJs: string | null = null
+let captureDelay = 5500
+let captureW = 1100
+let captureH = 750
 let mainWindow: BrowserWindow | null = null
 
 const pinnedWindows = new Set<number>()
@@ -68,6 +73,27 @@ function isThumbnailMode(): boolean {
 
 function parseArgs(): void {
   const args = process.argv.slice(1)
+  const valueOf = (flag: string): string | null => {
+    const i = args.indexOf(flag)
+    return i >= 0 && i + 1 < args.length ? args[i + 1] : null
+  }
+  // Hidden test hook: --capture <out.png> [--capture-js "<js>"] [--capture-delay ms]
+  // [--capture-size WxH] combined with --preview <file> or a model path. Renders
+  // the real UI in an invisible window and writes a PNG - used for background
+  // smoke tests, never shown to the user.
+  const cap = valueOf('--capture')
+  if (cap) {
+    captureOut = cap
+    captureJs = valueOf('--capture-js')
+    const d = Number(valueOf('--capture-delay'))
+    if (Number.isFinite(d) && d >= 0) captureDelay = d
+    const size = valueOf('--capture-size')
+    const m = size?.match(/^(\d+)x(\d+)$/)
+    if (m) {
+      captureW = Math.max(320, Number(m[1]))
+      captureH = Math.max(240, Number(m[2]))
+    }
+  }
   if (args.includes('--render-thumbnail')) {
     // --render-thumbnail <in> <out> [size]
     for (let i = 0; i < args.length; i++) {
@@ -99,28 +125,30 @@ function rendererDir(): string {
   return join(app.getAppPath(), 'dist', 'renderer')
 }
 
+// Chromium refuses to execute scripts (incl. worker importScripts) served
+// with a non-JS MIME type, and net.fetch(file://) has no type for .cjs/.wasm -
+// so protocol responses override Content-Type from this table.
 const MIME: Record<string, string> = {
   '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.cjs': 'text/javascript',
-  '.wasm': 'application/wasm', '.css': 'text/css', '.json': 'application/json', '.glb': 'model/gltf-binary',
-  '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.png': 'image/png', '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.bmp': 'image/bmp', '.tif': 'image/tiff', '.tiff': 'image/tiff',
-  '.mtl': 'text/plain', '.obj': 'text/plain', '.dae': 'application/xml', '.stl': 'model/stl',
-  '.svg': 'image/svg+xml', '.txt': 'text/plain', '.mp3': 'audio/mpeg', '.wav': 'audio/wav',
+  '.wasm': 'application/wasm', '.css': 'text/css', '.json': 'application/json',
 }
 
-function responseForFile(absPath: string): Response {
+function responseForFile(absPath: string): Response | Promise<Response> {
   const stat = fs.statSync(absPath, { throwIfNoEntry: false })
   if (!stat || !stat.isFile()) return new Response('Not found', { status: 404 })
-  const body = fs.readFileSync(absPath)
-  const mime = MIME[extname(absPath).toLowerCase()] ?? 'application/octet-stream'
-  return new Response(body, { headers: { 'Content-Type': mime } })
+  // Stream through net.fetch instead of readFileSync: the main process no
+  // longer blocks on (or buffers a full copy of) large models - the renderer
+  // reads them straight from disk through Chromium's file loader.
+  return net.fetch(pathToFileURL(absPath).toString()).catch(() => {
+    return new Response('Not found', { status: 404 })
+  })
 }
 
 function setupProtocol(): void {
   // Same-origin layout:
   //   vfdv://local/renderer/<asset>  -> bundled renderer files
   //   vfdv://local/file/<abs path>   -> arbitrary local files (models/textures)
-  protocol.handle('vfdv', (request) => {
+  protocol.handle('vfdv', async (request) => {
     try {
       const url = new URL(request.url)
       const raw = url.pathname
@@ -150,7 +178,13 @@ function setupProtocol(): void {
       } else {
         filePath = join(rendererDir(), ...rel.split('/'))
       }
-      return net.fetch(pathToFileURL(filePath).toString())
+      const resp = await net.fetch(pathToFileURL(filePath).toString())
+      const mime = MIME[extname(filePath).toLowerCase()]
+      if (!mime) return resp
+      return new Response(resp.body, {
+        status: resp.status,
+        headers: { 'Content-Type': mime },
+      })
     } catch {
       return new Response('Not found', { status: 404 })
     }
@@ -198,6 +232,50 @@ function createThumbnailWindow(): void {
       app.exit(1)
     }
   })
+}
+
+function createCaptureWindow(): void {
+  const win = new BrowserWindow({
+    width: captureW,
+    height: captureH,
+    show: false,
+    frame: false,
+    webPreferences: {
+      preload: join(__dirname, '../preload/preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+      backgroundThrottling: false,
+      offscreen: true,
+    },
+  })
+  let lastFrame: Electron.NativeImage | null = null
+  win.webContents.on('paint', (_e, _dirty, image) => {
+    lastFrame = image
+  })
+  win.webContents.on('console-message', (_e, level, message) => {
+    console.error(`[cap][console:${level}]`, message)
+  })
+  const q = new URLSearchParams({ mode: windowMode, capture: '1' })
+  if (launchFile) q.set('file', launchFile)
+  win.loadURL(`vfdv://local/renderer/index.html?${q.toString()}`)
+  setTimeout(async () => {
+    try {
+      if (captureJs) {
+        const r = await win.webContents.executeJavaScript(captureJs, true)
+        console.error('[cap] js ->', JSON.stringify(r))
+      }
+      await new Promise((r) => setTimeout(r, 1300))
+      const img: Electron.NativeImage | null = lastFrame
+      if (!img) throw new Error('no paint frame received')
+      if (captureOut) fs.writeFileSync(captureOut, img.toPNG())
+      console.error('[cap] ok')
+      app.exit(0)
+    } catch (e) {
+      console.error('[cap] failed', e)
+      app.exit(1)
+    }
+  }, captureDelay)
 }
 
 function createWindow(mode: WindowMode, file: string | null): BrowserWindow {
@@ -391,6 +469,11 @@ app.whenReady().then(() => {
 
   if (isThumbnailMode()) {
     createThumbnailWindow()
+    return
+  }
+
+  if (captureOut) {
+    createCaptureWindow()
     return
   }
 

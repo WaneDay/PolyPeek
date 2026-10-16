@@ -22,6 +22,7 @@ export type LoaderKind =
   | 'gcode'
   | 'vtk'
   | 'cad'
+  | 'sldworks'
   | 'points'
 
 export interface FormatEntry {
@@ -78,6 +79,11 @@ export const FORMATS: FormatEntry[] = [
   { ext: 'igs', kind: 'cad', group: 'cad', up: 'z' },
   { ext: 'brep', kind: 'cad', group: 'cad', up: 'z' },
   { ext: 'brp', kind: 'cad', group: 'cad', up: 'z' },
+
+  // SolidWorks native parts/assemblies (cached tessellation, no SolidWorks
+  // installation needed - decoded in-process by @wintaru/part-viewer)
+  { ext: 'sldprt', kind: 'sldworks', group: 'cad', up: 'y' },
+  { ext: 'sldasm', kind: 'sldworks', group: 'cad', up: 'y' },
 ]
 
 /** All supported extensions (lowercase, without dot). */
@@ -97,7 +103,9 @@ export const EXTENSIONS_WITH_DOT: string[] = ALL_EXTS.map((e) => '.' + e)
 export function formatLabel(ext: string): string {
   switch (EXT_MAP.get(ext)?.kind) {
     case 'cad': return 'CAD Model'
-    case 'point': return 'Point Cloud'
+    case 'sldworks': return 'SolidWorks Model'
+    case 'xyz':
+    case 'pcd': return 'Point Cloud'
     case 'gcode': return 'GCode Toolpath'
     case 'vtk': return 'Scientific Data'
     case 'vox': return 'Voxel Model'

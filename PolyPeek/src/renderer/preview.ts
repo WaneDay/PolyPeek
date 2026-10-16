@@ -12,7 +12,7 @@ export async function runPreview(params: URLSearchParams): Promise<void> {
   const c = createAppController(handles, ui, { animate: true, closeOnSpace: true })
 
   await initTheme(handles)
-  animateLoop(handles, c.getMixers)
+  animateLoop(handles, c.update, c.afterRender)
   window.addEventListener('resize', () => onViewportResize(handles))
 
   // Main window ESC is handled at the BrowserWindow level; keep a renderer

@@ -6,7 +6,9 @@
 ; update exe stays a few MB. Payload is staged by scripts\make-update-package.ps1
 ; into dist-package\update\*.
 #define MyAppName "PolyPeek"
-#define MyAppVersion "1.0.0"
+#ifndef MyAppVersion
+  #define MyAppVersion "1.1.0"
+#endif
 #define MyAppExeName "PolyPeek.exe"
 
 [Setup]

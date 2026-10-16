@@ -21,6 +21,7 @@ static const wchar_t* kSupportedFormats[] = {
     L"glb", L"gltf", L"obj", L"fbx", L"stl", L"3mf", L"amf", L"ply", L"dae", L"3ds",
     L"lwo", L"wrl", L"vox", L"drc", L"usdz", L"xyz", L"pcd", L"gcode", L"nc", L"ncc",
     L"ngc", L"vtk", L"vtp", L"step", L"stp", L"iges", L"igs", L"brep", L"brp",
+    L"sldprt", L"sldasm",
 };
 
 inline bool ext_in_list(const std::wstring& ext) {

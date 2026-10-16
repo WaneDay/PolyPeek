@@ -1,0 +1,40 @@
+# ---- 依赖目录 / dependencies ----
+node_modules/
+
+# ---- 构建输出 / build & package outputs ----
+dist/
+dist-package/
+native/build/
+
+# ---- electron-builder 打包必需的图标资源（白名单保留） ----
+build/*
+!build/icon.ico
+!build/icon.png
+
+# ---- 二进制安装包 / executables & installers ----
+# 不提交进 Git，仅在 Gitee Release 作为附件上传
+*.exe
+*.msi
+*.dll
+*.pdb
+*.ilk
+*.obj
+*.lib
+
+# ---- 日志 & 临时文件 ----
+*.log
+logs/
+.cache/
+tmp/
+
+# ---- IDE / 编辑器配置 ----
+.vscode/
+.idea/
+.vs/
+*.suo
+*.user
+
+# ---- 系统 / OS 垃圾文件 ----
+Thumbs.db
+Desktop.ini
+.DS_Store

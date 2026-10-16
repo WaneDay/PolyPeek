@@ -44,6 +44,8 @@ mkdirSync(dist, { recursive: true })
 await bundle('main', [join(root, 'src/main/index.ts')], join(dist, 'main/index.cjs'), 'node', 'cjs', ['electron'])
 await bundle('preload', [join(root, 'src/preload/preload.ts')], join(dist, 'preload/preload.cjs'), 'node', 'cjs', ['electron'])
 await bundle('renderer', [join(root, 'src/renderer/index.ts')], join(dist, 'renderer/renderer.js'), 'browser', 'esm')
+// classic worker (iife): OCCT STEP/IGES/BREP parsing off the UI thread
+await bundle('cad-worker', [join(root, 'src/renderer/cad-worker.ts')], join(dist, 'renderer/cad-worker.js'), 'browser', 'iife')
 
 // static assets
 const rendererDst = join(dist, 'renderer')

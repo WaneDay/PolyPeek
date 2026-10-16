@@ -1,6 +1,8 @@
 ; PolyPeek - Inno Setup script (per-user install, opt-in associations/thumbnails)
 #define MyAppName "PolyPeek"
-#define MyAppVersion "1.0.0"
+#ifndef MyAppVersion
+  #define MyAppVersion "1.1.0"
+#endif
 #define MyAppPublisher "PolyPeek"
 #define MyAppExeName "PolyPeek.exe"
 #define MyAppCLSID "{{B66E45DB-9A5C-4805-8D8B-CB84A1A1EBFB}"
@@ -77,6 +79,8 @@ Root: HKCU; Subkey: "Software\Classes\.iges\ShellEx\{#ThumbProvId}"; ValueType: 
 Root: HKCU; Subkey: "Software\Classes\.igs\ShellEx\{#ThumbProvId}"; ValueType: string; ValueName: ""; ValueData: "{#MyAppCLSID}"; Flags: uninsdeletevalue; Tasks: thumb; Check: SafeThumb('.igs')
 Root: HKCU; Subkey: "Software\Classes\.brep\ShellEx\{#ThumbProvId}"; ValueType: string; ValueName: ""; ValueData: "{#MyAppCLSID}"; Flags: uninsdeletevalue; Tasks: thumb; Check: SafeThumb('.brep')
 Root: HKCU; Subkey: "Software\Classes\.brp\ShellEx\{#ThumbProvId}"; ValueType: string; ValueName: ""; ValueData: "{#MyAppCLSID}"; Flags: uninsdeletevalue; Tasks: thumb; Check: SafeThumb('.brp')
+Root: HKCU; Subkey: "Software\Classes\.sldprt\ShellEx\{#ThumbProvId}"; ValueType: string; ValueName: ""; ValueData: "{#MyAppCLSID}"; Flags: uninsdeletevalue; Tasks: thumb; Check: SafeThumb('.sldprt')
+Root: HKCU; Subkey: "Software\Classes\.sldasm\ShellEx\{#ThumbProvId}"; ValueType: string; ValueName: ""; ValueData: "{#MyAppCLSID}"; Flags: uninsdeletevalue; Tasks: thumb; Check: SafeThumb('.sldasm')
 
 ; ---- file associations (task "assoc", never override existing association) ----
 Root: HKCU; Subkey: "Software\Classes\.glb"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: assoc; Check: SafeAssoc('.glb')
@@ -108,6 +112,8 @@ Root: HKCU; Subkey: "Software\Classes\.iges"; ValueType: string; ValueName: ""; 
 Root: HKCU; Subkey: "Software\Classes\.igs"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: assoc; Check: SafeAssoc('.igs')
 Root: HKCU; Subkey: "Software\Classes\.brep"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: assoc; Check: SafeAssoc('.brep')
 Root: HKCU; Subkey: "Software\Classes\.brp"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: assoc; Check: SafeAssoc('.brp')
+Root: HKCU; Subkey: "Software\Classes\.sldprt"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: assoc; Check: SafeAssoc('.sldprt')
+Root: HKCU; Subkey: "Software\Classes\.sldasm"; ValueType: string; ValueName: ""; ValueData: "{#ProgId}"; Flags: uninsdeletevalue; Tasks: assoc; Check: SafeAssoc('.sldasm')
 
 ; ---- ProgID (only when "assoc" selected) ----
 Root: HKCU; Subkey: "Software\Classes\{#ProgId}"; ValueType: string; ValueName: ""; ValueData: "{#MyAppName} 3D 模型"; Flags: uninsdeletekey; Tasks: assoc
@@ -153,6 +159,8 @@ Root: HKCU; Subkey: "Software\{#MyAppName}\Capabilities\FileAssociations"; Value
 Root: HKCU; Subkey: "Software\{#MyAppName}\Capabilities\FileAssociations"; ValueType: string; ValueName: ".igs"; ValueData: "{#ProgId}"; Flags: uninsdeletekey; Tasks: assoc
 Root: HKCU; Subkey: "Software\{#MyAppName}\Capabilities\FileAssociations"; ValueType: string; ValueName: ".brep"; ValueData: "{#ProgId}"; Flags: uninsdeletekey; Tasks: assoc
 Root: HKCU; Subkey: "Software\{#MyAppName}\Capabilities\FileAssociations"; ValueType: string; ValueName: ".brp"; ValueData: "{#ProgId}"; Flags: uninsdeletekey; Tasks: assoc
+Root: HKCU; Subkey: "Software\{#MyAppName}\Capabilities\FileAssociations"; ValueType: string; ValueName: ".sldprt"; ValueData: "{#ProgId}"; Flags: uninsdeletekey; Tasks: assoc
+Root: HKCU; Subkey: "Software\{#MyAppName}\Capabilities\FileAssociations"; ValueType: string; ValueName: ".sldasm"; ValueData: "{#ProgId}"; Flags: uninsdeletekey; Tasks: assoc
 ; Explorer "Open with" list + honest "supported types" for the shell.
 Root: HKCU; Subkey: "Software\Classes\Applications\{#MyAppExeName}"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "{#MyAppName}"; Flags: uninsdeletekey; Tasks: assoc
 Root: HKCU; Subkey: "Software\Classes\Applications\{#MyAppExeName}"; ValueType: string; ValueName: "ApplicationCompany"; ValueData: "{#MyAppPublisher}"; Flags: uninsdeletekey; Tasks: assoc
@@ -185,6 +193,8 @@ Root: HKCU; Subkey: "Software\Classes\Applications\{#MyAppExeName}\SupportedType
 Root: HKCU; Subkey: "Software\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".igs"; ValueData: ""; Flags: uninsdeletekey; Tasks: assoc
 Root: HKCU; Subkey: "Software\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".brep"; ValueData: ""; Flags: uninsdeletekey; Tasks: assoc
 Root: HKCU; Subkey: "Software\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".brp"; ValueData: ""; Flags: uninsdeletekey; Tasks: assoc
+Root: HKCU; Subkey: "Software\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".sldprt"; ValueData: ""; Flags: uninsdeletekey; Tasks: assoc
+Root: HKCU; Subkey: "Software\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".sldasm"; ValueData: ""; Flags: uninsdeletekey; Tasks: assoc
 ; OpenWithProgids: makes the ProgId discoverable for each extension, both in
 ; the legacy HKCU\Software\Classes root and in FileExts (which Windows 8+
 ; "Open With"/default-apps UI actually reads).
@@ -218,6 +228,8 @@ Root: HKCU; Subkey: "Software\Classes\.iges\OpenWithProgids"; ValueType: string;
 Root: HKCU; Subkey: "Software\Classes\.igs\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: assoc
 Root: HKCU; Subkey: "Software\Classes\.brep\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: assoc
 Root: HKCU; Subkey: "Software\Classes\.brp\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: assoc
+Root: HKCU; Subkey: "Software\Classes\.sldprt\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: assoc
+Root: HKCU; Subkey: "Software\Classes\.sldasm\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: assoc
 ; FileExts\<ext>\OpenWithProgids (what the modern "Open With / Default apps" UI reads)
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.glb\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: assoc
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.gltf\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: assoc
@@ -248,13 +260,15 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.igs\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: assoc
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.brep\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: assoc
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.brp\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: assoc
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.sldprt\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: assoc
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.sldasm\OpenWithProgids"; ValueType: string; ValueName: "{#ProgId}"; ValueData: ""; Flags: uninsdeletevalue; Tasks: assoc
 
 ; ---- tray autostart (task "autostart") ----
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "PolyPeekTray"; ValueData: """{app}\TrayHost.exe"""; Tasks: autostart; Flags: uninsdeletevalue
 
 [Run]
 ; applies the (hash-protected) per-user UserChoice default for every extension
-Filename: "{app}\TrayHost.exe"; Parameters: "assocset .glb .gltf .obj .fbx .stl .3mf .amf .ply .dae .3ds .lwo .wrl .vox .drc .usdz .xyz .pcd .gcode .nc .ncc .ngc .vtk .vtp .step .stp .iges .igs .brep .brp"; StatusMsg: "正在设置默认文件关联..."; Flags: runhidden waituntilterminated; Tasks: assoc
+Filename: "{app}\TrayHost.exe"; Parameters: "assocset .glb .gltf .obj .fbx .stl .3mf .amf .ply .dae .3ds .lwo .wrl .vox .drc .usdz .xyz .pcd .gcode .nc .ncc .ngc .vtk .vtp .step .stp .iges .igs .brep .brp .sldprt .sldasm"; StatusMsg: "正在设置默认文件关联..."; Flags: runhidden waituntilterminated; Tasks: assoc
 Filename: "{app}\TrayHost.exe"; Description: "启动快速预览托盘服务"; Flags: nowait skipifdoesntexist runhidden
 
 [Icons]
@@ -263,7 +277,7 @@ Name: "{autoprograms}\{#MyAppName}\卸载 {#MyAppName}"; Filename: "{uninstallex
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [UninstallRun]
-Filename: "{app}\TrayHost.exe"; Parameters: "assocdel .glb .gltf .obj .fbx .stl .3mf .amf .ply .dae .3ds .lwo .wrl .vox .drc .usdz .xyz .pcd .gcode .nc .ncc .ngc .vtk .vtp .step .stp .iges .igs .brep .brp"; Flags: runhidden waituntilterminated; Tasks: assoc
+Filename: "{app}\TrayHost.exe"; Parameters: "assocdel .glb .gltf .obj .fbx .stl .3mf .amf .ply .dae .3ds .lwo .wrl .vox .drc .usdz .xyz .pcd .gcode .nc .ncc .ngc .vtk .vtp .step .stp .iges .igs .brep .brp .sldprt .sldasm"; Flags: runhidden waituntilterminated; Tasks: assoc
 Filename: "{sys}\taskkill.exe"; Parameters: "/f /im TrayHost.exe"; Flags: runhidden
 Filename: "{sys}\taskkill.exe"; Parameters: "/f /im {#MyAppExeName}"; Flags: runhidden
 

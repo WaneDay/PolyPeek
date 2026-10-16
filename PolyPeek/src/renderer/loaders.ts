@@ -20,11 +20,15 @@ import { GCodeLoader } from 'three/examples/jsm/loaders/GCodeLoader.js'
 import { VTKLoader } from 'three/examples/jsm/loaders/VTKLoader.js'
 import { EXT_MAP, LoaderKind } from '../shared/formats'
 import { createDefaultMaterial, Up } from './scene'
+import { loadSolidWorks } from './sldworks'
 
 export interface LoadedModel {
   group: THREE.Group
   up: Up
-  mixers: THREE.AnimationMixer[]
+  /** Object the animation clips were authored against (null = none). */
+  animRoot: THREE.Object3D | null
+  /** Animation clips found in the file (empty = none). */
+  clips: THREE.AnimationClip[]
 }
 
 /** Same-origin file URL served by our vfdv://local/file/ protocol. */
@@ -109,7 +113,8 @@ async function loadViaUrl(loader: { loadAsync: (url: string) => Promise<unknown>
 
 async function fromUrlLoad(kind: LoaderKind, url: string, up: Up, dir: string): Promise<LoadedModel> {
   const group = new THREE.Group()
-  const mixers: THREE.AnimationMixer[] = []
+  let animRoot: THREE.Object3D | null = null
+  let clips: THREE.AnimationClip[] = []
   const path = dirUrl(dir)
 
   switch (kind) {
@@ -121,11 +126,8 @@ async function fromUrlLoad(kind: LoaderKind, url: string, up: Up, dir: string): 
       loader.setDRACOLoader(draco)
       const gltf = (await loadViaUrl(loader, url)) as { scene: THREE.Group; animations?: THREE.AnimationClip[] }
       group.add(gltf.scene)
-      for (const clip of gltf.animations || []) {
-        const mixer = new THREE.AnimationMixer(gltf.scene)
-        mixer.clipAction(clip).play()
-        mixers.push(mixer)
-      }
+      animRoot = gltf.scene
+      clips = gltf.animations || []
       break
     }
     case 'obj': {
@@ -178,11 +180,8 @@ async function fromUrlLoad(kind: LoaderKind, url: string, up: Up, dir: string): 
       const obj = (await loadViaUrl(loader, url)) as THREE.Object3D & { animations?: THREE.AnimationClip[] }
       normalizeFbxMaterials(obj)
       group.add(obj)
-      for (const clip of obj.animations || []) {
-        const mixer = new THREE.AnimationMixer(obj)
-        mixer.clipAction(clip).play()
-        mixers.push(mixer)
-      }
+      animRoot = obj
+      clips = obj.animations || []
       break
     }
     case 'stl': {
@@ -195,16 +194,34 @@ async function fromUrlLoad(kind: LoaderKind, url: string, up: Up, dir: string): 
       const loader = new PLYLoader()
       const geometry = (await loadViaUrl(loader, url)) as THREE.BufferGeometry
       const hasColor = geometry.getAttribute('color') !== undefined
-      const mat = hasColor
-        ? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, metalness: 0.0 })
-        : createDefaultMaterial()
-      group.add(new THREE.Mesh(geometry, mat))
+      if (geometry.index) {
+        const mat = hasColor
+          ? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, metalness: 0.0 })
+          : createDefaultMaterial()
+        group.add(new THREE.Mesh(geometry, mat))
+      } else {
+        // PLYLoader only builds an index when faces exist, so no index means a
+        // pure point cloud - a Mesh would render nothing visible.
+        const mat = new THREE.PointsMaterial({
+          color: hasColor ? 0xffffff : 0x9fb0d4,
+          vertexColors: hasColor,
+          size: 0.01,
+          sizeAttenuation: true,
+        })
+        group.add(new THREE.Points(geometry, mat))
+      }
       break
     }
     case 'dae': {
       const loader = new ColladaLoader()
-      const collada = (await loadViaUrl(loader, url)) as { scene: THREE.Object3D }
+      const collada = (await loadViaUrl(loader, url)) as {
+        scene: THREE.Object3D & { animations?: THREE.AnimationClip[] }
+      }
       group.add(collada.scene)
+      // ColladaLoader exposes clips on scene.animations (the result-level
+      // getter is deprecated and logs a warning).
+      animRoot = collada.scene
+      clips = collada.scene.animations || []
       break
     }
     case 'tds': {
@@ -278,11 +295,22 @@ async function fromUrlLoad(kind: LoaderKind, url: string, up: Up, dir: string): 
       group.add(obj)
       break
     }
+    case 'wrl': {
+      const loader = new VRMLLoader()
+      const obj = (await loadViaUrl(loader, url)) as THREE.Object3D
+      group.add(obj)
+      break
+    }
+    case 'sldworks': {
+      const bytes = new Uint8Array(await fetchArrayBuffer(url))
+      group.add(loadSolidWorks(bytes))
+      break
+    }
     default:
       throw new Error(`unhandled loader kind: ${kind}`)
   }
 
-  return { group, up, mixers }
+  return { group, up, animRoot, clips }
 }
 
 // ---- CAD via OCCT WASM -----------------------------------------------------
@@ -310,7 +338,8 @@ async function getOcct(): Promise<any> {
       // Emscripten's internal fetch does not support custom protocols, so the
       // wasm binary is fetched over our protocol and passed directly.
       const wasmBinary = await fetchArrayBuffer('./wasm/occt-import-js.wasm')
-      const initFn = (window as { occtimportjs?: () => Promise<any> }).occtimportjs
+      const initFn = (window as { occtimportjs?: (opts?: { wasmBinary?: ArrayBuffer }) => Promise<any> })
+        .occtimportjs
       if (typeof initFn !== 'function') throw new Error('occt-import-js was not initialized')
       return initFn({ wasmBinary })
     })().catch((err) => {
@@ -321,32 +350,116 @@ async function getOcct(): Promise<any> {
   return occtModulePromise
 }
 
-async function loadCad(absPath: string, up: Up): Promise<LoadedModel> {
-  const bytes = await fetchArrayBuffer(fileUrl(absPath))
-  const occt = await getOcct()
-  const data = new Uint8Array(bytes)
-  let result: any
-  const ext = extOf(absPath)
-  if (ext === 'iges' || ext === 'igs') result = occt.ReadIgesFile(data, null)
-  else if (ext === 'brep' || ext === 'brp') result = occt.ReadBrepFile(data, null)
-  else result = occt.ReadStepFile(data, null)
+// STEP/IGES/BREP tessellation runs in a worker (cad-worker.js) so the window
+// stays responsive while OCCT crunches; results arrive as typed arrays with
+// transferred buffers (zero copy). If the worker cannot be created the parse
+// falls back to the main thread below.
+interface CadWorkerResult {
+  root: unknown
+  meshes: unknown[]
+}
 
-  if (!result || !result.success) throw new Error(`${String(ext).toUpperCase()} import failed`)
+let cadWorker: Worker | null = null
+let cadWorkerBroken = false
+let cadJobId = 0
+const cadJobs = new Map<number, { resolve: (r: CadWorkerResult) => void; reject: (e: Error) => void }>()
+
+function failAllCadJobs(message: string): void {
+  for (const [, job] of cadJobs) job.reject(new Error(message))
+  cadJobs.clear()
+}
+
+function getCadWorker(): Worker {
+  if (!cadWorker) {
+    const w = new Worker('./cad-worker.js')
+    w.onmessage = (ev: MessageEvent) => {
+      const d = ev.data as {
+        id: number
+        ok: boolean
+        root?: unknown
+        meshes?: unknown[]
+        error?: string
+      }
+      const job = cadJobs.get(d.id)
+      if (!job) return
+      cadJobs.delete(d.id)
+      if (d.ok) job.resolve({ root: d.root, meshes: d.meshes ?? [] })
+      else job.reject(new Error(d.error || 'CAD worker failed'))
+    }
+    w.onerror = (ev: ErrorEvent) => {
+      // script/wasm load failure: disable the worker for this session and
+      // reject pending jobs so the caller falls back to in-process parsing
+      cadWorkerBroken = true
+      failAllCadJobs(ev.message || 'CAD worker error')
+      w.terminate()
+      cadWorker = null
+    }
+    cadWorker = w
+  }
+  return cadWorker
+}
+
+function parseCadInWorker(ext: string, bytes: ArrayBuffer): Promise<CadWorkerResult> {
+  if (cadWorkerBroken) return Promise.reject(new Error('CAD worker unavailable'))
+  return new Promise<CadWorkerResult>((resolve, reject) => {
+    try {
+      const w = getCadWorker()
+      const id = ++cadJobId
+      cadJobs.set(id, { resolve, reject })
+      w.postMessage({ id, ext, buffer: bytes }, [bytes])
+    } catch (err) {
+      cadWorkerBroken = true
+      reject(err instanceof Error ? err : new Error(String(err)))
+    }
+  })
+}
+
+function toF32(a: ArrayLike<number> | null | undefined): Float32Array | undefined {
+  if (!a) return undefined
+  return a instanceof Float32Array ? a : new Float32Array(a)
+}
+
+function toU32(a: ArrayLike<number> | null | undefined): Uint32Array | undefined {
+  if (!a) return undefined
+  return a instanceof Uint32Array ? a : new Uint32Array(a)
+}
+
+async function loadCad(absPath: string, up: Up): Promise<LoadedModel> {
+  const ext = extOf(absPath)
+  const bytes = await fetchArrayBuffer(fileUrl(absPath))
+
+  let tree: any
+  let rawMeshes: any[]
+  try {
+    const res = await parseCadInWorker(ext, bytes)
+    tree = res.root
+    rawMeshes = res.meshes
+    ;(window as unknown as Record<string, unknown>).__ppOcctVia = 'worker'
+  } catch (err) {
+    // worker unavailable: parse in-process so CAD formats keep working
+    console.error('[cad] worker unavailable, parsing in-process:', err)
+    const occt = await getOcct()
+    const data = new Uint8Array(bytes)
+    let result: any
+    if (ext === 'iges' || ext === 'igs') result = occt.ReadIgesFile(data, null)
+    else if (ext === 'brep' || ext === 'brp') result = occt.ReadBrepFile(data, null)
+    else result = occt.ReadStepFile(data, null)
+    if (!result || !result.success) throw new Error(`${ext.toUpperCase()} import failed`)
+    tree = result.root
+    rawMeshes = result.meshes || []
+    ;(window as unknown as Record<string, unknown>).__ppOcctVia = 'main'
+  }
 
   const group = new THREE.Group()
-  const meshes: any[] = result.meshes || []
 
   const addNode = (node: any, parent: THREE.Object3D): void => {
     for (const meshIdx of node?.meshes || []) {
-      const mesh = meshes[meshIdx]
+      const mesh = rawMeshes[meshIdx]
       if (!mesh) continue
-      const rawPos = mesh.attributes?.position?.array
-      const rawNorm = mesh.attributes?.normal?.array
-      const rawIdx = mesh.index?.array
-      if (!rawPos || !rawPos.length) continue
-      const pos = new Float32Array(rawPos)
-      const norm = rawNorm && rawNorm.length ? new Float32Array(rawNorm) : undefined
-      const idx = rawIdx && rawIdx.length ? new Uint32Array(rawIdx) : undefined
+      const pos = toF32(mesh.attributes?.position?.array)
+      if (!pos || pos.length === 0) continue
+      const norm = toF32(mesh.attributes?.normal?.array)
+      const idx = toU32(mesh.index?.array)
       const geometry = new THREE.BufferGeometry()
       geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3))
       if (norm) geometry.setAttribute('normal', new THREE.BufferAttribute(norm, 3))
@@ -360,12 +473,12 @@ async function loadCad(absPath: string, up: Up): Promise<LoadedModel> {
     for (const child of node?.children || []) addNode(child, parent)
   }
 
-  addNode(result.root, group)
+  addNode(tree, group)
   group.scale.setScalar(0.001)
 
   if (group.children.length === 0) throw new Error('no geometry found in CAD model')
 
-  return { group, up, mixers: [] }
+  return { group, up, animRoot: null, clips: [] }
 }
 
 // ---- main entry -------------------------------------------------------------

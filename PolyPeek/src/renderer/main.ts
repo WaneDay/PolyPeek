@@ -12,7 +12,7 @@ export async function runMain(params: URLSearchParams): Promise<void> {
   const c = createAppController(handles, ui, { animate: true })
 
   await initTheme(handles)
-  animateLoop(handles, c.getMixers)
+  animateLoop(handles, c.update, c.afterRender)
   window.addEventListener('resize', () => onViewportResize(handles))
 
   const file = params.get('file')

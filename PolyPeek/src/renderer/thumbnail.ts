@@ -34,10 +34,15 @@ function deliver(canvas: HTMLCanvasElement, size: number, onError: boolean): voi
     })
   }
   if (onError) {
-    const ctx = canvas.getContext('2d')
+    // `canvas` already owns a WebGL context, so getContext('2d') on it returns
+    // null - draw the placeholder on a fresh canvas instead.
+    const ph = document.createElement('canvas')
+    ph.width = size
+    ph.height = size
+    const ctx = ph.getContext('2d')
     if (ctx) {
       makePlaceholder(ctx, size)
-      finish(canvas.toDataURL('image/png').split(',')[1])
+      finish(ph.toDataURL('image/png').split(',')[1])
       return
     }
   }
@@ -102,8 +107,8 @@ export async function runThumbnail(params: URLSearchParams): Promise<void> {
     await waitForTextures(loaded.group)
 
     scene.add(loaded.group)
-    fitCameraToObject(null, camera, loaded.group, loaded.up)
-    applyDefaultAppearance(loaded.group, 1)
+    const dims = fitCameraToObject(null, camera, loaded.group, loaded.up)
+    applyDefaultAppearance(loaded.group, Math.max(dims.x, dims.y, dims.z))
 
     // Wait two frames so GPU work settles before capture.
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))

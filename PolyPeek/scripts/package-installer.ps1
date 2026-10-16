@@ -8,7 +8,8 @@ $ErrorActionPreference = "Stop"
 $proj = Split-Path -Parent $PSScriptRoot
 $thin  = Join-Path $proj "dist-package\win-unpacked"
 $slug  = "PolyPeek"
-$ver   = "1.0.0"
+$ver = (Get-Content (Join-Path $proj "package.json") -Raw | ConvertFrom-Json).version
+if ($ver -notmatch '^\d+\.\d+\.\d+$') { throw "invalid version in package.json: '$ver'" }
 
 if ($Proxy) {
     Set-Item env:HTTPS_PROXY $Proxy -ErrorAction SilentlyContinue
